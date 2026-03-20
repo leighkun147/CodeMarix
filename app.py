@@ -14,6 +14,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 from datetime import datetime
 import os
+import json
 
 from src.requester import generate_code_parallel
 from src.judge_matrix import peer_review_matrix, RUBRIC
@@ -29,6 +30,31 @@ from src.utils.data_sanitizer import sanitize_session_data
 
 
 # ============================================================================
+# PERSISTENT PREFERENCES (Browser Form Memory)
+# ============================================================================
+
+PREFERENCES_FILE = os.path.expanduser("~/.codexmatrix_prefs.json")
+
+def load_preferences():
+    """Load saved form inputs (problems, models, languages, API keys)."""
+    if os.path.exists(PREFERENCES_FILE):
+        try:
+            with open(PREFERENCES_FILE, "r") as f:
+                return json.load(f)
+        except:
+            return {}
+    return {}
+
+def save_preferences(prefs: dict):
+    """Save form inputs to persistent storage."""
+    try:
+        with open(PREFERENCES_FILE, "w") as f:
+            json.dump(prefs, f, indent=2)
+    except Exception as e:
+        st.warning(f"⚠️ Could not save preferences: {e}")
+
+
+# ============================================================================
 # PAGE CONFIGURATION & SESSION STATE INITIALIZATION
 # ============================================================================
 
@@ -38,14 +64,17 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Load saved preferences from disk
+saved_prefs = load_preferences()
+
 # Initialize Session State as the "Temporary Vault"
 if "session_initialized" not in st.session_state:
     st.session_state.session_initialized = True
     st.session_state.session_start = datetime.now()
-    st.session_state.api_keys = {}
-    st.session_state.models = []
-    st.session_state.languages = []
-    st.session_state.problems = []
+    st.session_state.api_keys = saved_prefs.get("api_keys", {})
+    st.session_state.models = saved_prefs.get("models", [])
+    st.session_state.languages = saved_prefs.get("languages", ["Python"])
+    st.session_state.problems = saved_prefs.get("problems", [])
     st.session_state.generation_results = None
     st.session_state.review_results = None
     st.session_state.stats_complete = False
@@ -107,6 +136,7 @@ st.markdown("""
 - 🔐 **Privacy First**: API keys stay in RAM, cleared when browser closes
 - ⚡ **Real-Time Analysis**: Live heatmaps and winner determination
 - 📊 **Peer Review**: Each model reviews every other model's code
+- 💾 **Form Memory**: Your problems, models, languages, and API keys are saved locally and restored on your next visit
 
 """)
 
@@ -119,12 +149,14 @@ with st.sidebar:
     
     # Step 1: Problem Input
     st.subheader("Step 1: Enter Coding Problems")
-    st.caption("Add up to 5 coding challenges")
+    st.caption("Add up to 5 coding challenges (saved automatically)")
     
     problem_inputs = []
     for i in range(5):
+        default_problem = saved_prefs.get("problems", [])[i] if i < len(saved_prefs.get("problems", [])) else ""
         prob = st.text_area(
             f"Problem {i+1}",
+            value=default_problem,
             height=70,
             key=f"problem_input_{i}",
             placeholder=f"E.g., 'Implement quicksort for a list of integers'"
@@ -158,6 +190,7 @@ with st.sidebar:
     st.session_state.models = st.multiselect(
         "Choose AI models",
         AVAILABLE_MODELS,
+        default=saved_prefs.get("models", []),
         help="Select at least 1 model to benchmark"
     )
     
@@ -168,14 +201,14 @@ with st.sidebar:
     st.session_state.languages = st.multiselect(
         "Choose programming languages",
         AVAILABLE_LANGUAGES,
-        default=["Python"]
+        default=saved_prefs.get("languages", ["Python"])
     )
     
     st.divider()
     
     # Step 4: API Keys
     if st.session_state.models:
-        st.subheader("Step 4: Enter API Keys (🔐 RAM-Only, Never Saved)")
+        st.subheader("Step 4: Enter API Keys (🔐 Saved for Next Time)")
         
         st.warning(
             "⚠️ **RESEARCH NOTICE**\n\n"
@@ -185,8 +218,10 @@ with st.sidebar:
         )
         
         for model in st.session_state.models:
+            saved_key = saved_prefs.get("api_keys", {}).get(model, "")
             api_key = st.text_input(
                 f"{model} API Key",
+                value=saved_key,
                 type="password",
                 key=f"api_key_{model}",
                 placeholder=f"Paste your real {model} API key here (40+ characters)"
@@ -195,8 +230,8 @@ with st.sidebar:
                 st.session_state.api_keys[model] = api_key
         
         st.info(
-            "✅ **Privacy Guarantee**: API keys are stored only in RAM. "
-            "They are automatically cleared when you close the browser."
+            "✅ **Form Memory**: API keys are saved locally and restored on your next visit. "
+            "They are also cleared when you clear your browser cache."
         )
     
     st.divider()
@@ -216,6 +251,12 @@ with st.sidebar:
         key="launch_btn",
         use_container_width=True
     )
+    
+    with cols[1]:
+        if st.button("🗑️ Clear Saved Data", use_container_width=True, key="clear_btn"):
+            save_preferences({})
+            st.success("✅ All saved data cleared!")
+            st.rerun()
 
 
 # ============================================================================
@@ -255,6 +296,16 @@ if launch_benchmark:
     if not is_valid:
         st.error("\n".join(errors))
     else:
+        # Save preferences for next time user visits
+        prefs_to_save = {
+            "problems": st.session_state.problems,
+            "models": st.session_state.models,
+            "languages": st.session_state.languages,
+            "api_keys": st.session_state.api_keys
+        }
+        save_preferences(prefs_to_save)
+        st.success("✅ Form inputs saved! They will appear next time you visit.")
+        
         st.session_state.benchmark_running = True
         
         # ====== STEP A: CODE GENERATION ======
