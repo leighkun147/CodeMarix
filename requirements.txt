@@ -2,4 +2,4 @@ streamlit>=1.40.0
 requests>=2.32.0
 pandas>=2.2.0
 numpy>=2.0.0
-openai>=1.30.0
+openai>=1.30.0plotly>=6.6.0
