@@ -9,9 +9,11 @@ import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
+
 def call_openai_api(problem: str, language: str, api_key: str) -> str:
     """Call OpenAI API (GPT-4o, GPT-4 Turbo, etc.) for code generation."""
     try:
+
         headers = {"Authorization": f"Bearer {api_key}"}
         payload = {
             "model": "gpt-4o",
@@ -60,7 +62,7 @@ def call_anthropic_api(problem: str, language: str, api_key: str) -> str:
 def call_google_api(problem: str, language: str, api_key: str) -> str:
     """Call Google API (Gemini models) for code generation."""
     try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.0-pro:generateContent?key={api_key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
         payload = {
             "contents": [{
                 "parts": [{
@@ -103,12 +105,58 @@ def call_deepseek_api(problem: str, language: str, api_key: str) -> str:
         return f"# Error calling DeepSeek: {str(e)}"
 
 
+def call_groq_api(problem: str, language: str, api_key: str, model: str = "llama-3.3-70b-versatile") -> str:
+    """Call Groq API (LLaMA, Mixtral) for code generation."""
+    try:
+        # Map friendly names to Groq model IDs
+        model_mapping = {
+            "llama-3.1-70b": "llama-3.3-70b-versatile",
+            "llama-3.1": "llama-3.3-70b-versatile",
+            "mixtral": "mixtral-8x7b-32768",
+            "llama-3-8b": "llama3-8b-8192",
+        }
+        
+        # Extract model ID from the model name
+        groq_model = "llama-3.3-70b-versatile"  # Default
+        for key, value in model_mapping.items():
+            if key in model.lower():
+                groq_model = value
+                break
+        
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "model": groq_model,
+            "messages": [{
+                "role": "user",
+                "content": f"Write a {language} solution for: {problem}\nReturn only the code, no explanations."
+            }],
+            "temperature": 0.7,
+            "max_tokens": 1000
+        }
+        response = requests.post("https://api.groq.com/openai/v1/chat/completions",
+                                headers=headers, json=payload, timeout=30)
+        if response.status_code == 200:
+            return response.json()["choices"][0]["message"]["content"]
+        else:
+            # Return more detailed error info for debugging
+            try:
+                error_detail = response.json()
+                return f"# Groq API Error: {response.status_code} - {error_detail}"
+            except:
+                return f"# Groq API Error: {response.status_code} - {response.text[:200]}"
+    except Exception as e:
+        return f"# Error calling Groq: {str(e)}"
+
+
 def get_api_caller(model: str):
     """
     Return the appropriate API caller function for a given model.
     
     Args:
-        model: Model name (e.g., "GPT-4o", "Claude 3.5 Sonnet", "Gemini 1.5 Pro", "DeepSeek")
+        model: Model name (e.g., "GPT-4o", "Claude 3.5 Sonnet", "Gemini 1.0 Pro", "Groq - Llama 3.1 70B")
     
     Returns:
         Function to call the appropriate API
@@ -119,6 +167,8 @@ def get_api_caller(model: str):
         return call_anthropic_api
     elif "Gemini" in model or "gemini" in model:
         return call_google_api
+    elif "Groq" in model or "groq" in model:
+        return (lambda p, l, k: call_groq_api(p, l, k, model))
     elif "DeepSeek" in model or "deepseek" in model:
         return call_deepseek_api
     else:

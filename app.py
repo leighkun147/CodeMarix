@@ -84,14 +84,10 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 AVAILABLE_MODELS = [
-    "GPT-4o",
-    "Claude 3.5 Sonnet",
-    "Gemini 1.0 Pro",
-    "DeepSeek-Coder-V2",
-    "Codestral",
-    "Llama 3 / CodeLlama",
-    "Qwen-Coder",
-    "StarCoder2",
+    "Gemini 2.0 Flash",
+    "Groq - Llama 3.1 70B",
+    "Groq - Mixtral 8x7B",
+    "Groq - LLaMA 3 8B",
 ]
 
 AVAILABLE_LANGUAGES = [
@@ -142,10 +138,27 @@ with st.sidebar:
     
     # Step 2: Model Selection
     st.subheader("Step 2: Select Models to Benchmark")
+    st.info("""
+    **Model Availability:**
+    - ✅ **Gemini 2.0 Flash**: Free tier at [aistudio.google.com](https://aistudio.google.com)
+      - Latest Gemini model (faster & more capable)
+      - Rate limit: 15 requests/minute on free tier
+      - No credit card required
+    - ✅ **Groq - Llama 3.1 70B**: Free tier at [console.groq.com](https://console.groq.com)
+      - Generous free tier with no hard limits
+      - Fastest inference speed
+    - ✅ **Groq - Mixtral 8x7B**: Free tier, excellent for code
+    - ✅ **Groq - LLaMA 3 8B**: Free tier, lightweight model
+    
+    **Best for Learning:** Use **Groq** (truly unlimited free tier!)
+    **Can't get API keys?** Try "Use Mock Data" toggle to test the system!
+    """)
+
+    
     st.session_state.models = st.multiselect(
         "Choose AI models",
         AVAILABLE_MODELS,
-        help="At least 2 models needed for peer review"
+        help="Select at least 1 model to benchmark"
     )
     
     st.divider()
@@ -272,6 +285,31 @@ if launch_benchmark:
                             len(st.session_state.models))
                 st.info(f"Generated **{num_tasks}** code samples ({len(st.session_state.problems)} problems × "
                        f"{len(st.session_state.languages)} languages × {len(st.session_state.models)} models)")
+                
+                # Display actual generated code
+                st.subheader("🔎 Generated Code Details")
+                
+                for problem in st.session_state.problems:
+                    with st.expander(f"📌 Problem: {problem[:60]}..."):
+                        for language in st.session_state.languages:
+                            st.write(f"**Language: {language}**")
+                            
+                            # Create columns for each model
+                            model_cols = st.columns(len(st.session_state.models))
+                            
+                            for idx, model in enumerate(st.session_state.models):
+                                with model_cols[idx]:
+                                    code_data = st.session_state.generation_results.get(problem, {}).get(language, {}).get(model, {})
+                                    
+                                    if code_data.get("valid"):
+                                        st.write(f"✅ **{model}**")
+                                        st.code(code_data.get("code", ""), language=language.lower())
+                                    else:
+                                        error_msg = code_data.get("error", "Unknown error")
+                                        st.write(f"❌ **{model}**")
+                                        st.error(error_msg)
+                            
+                            st.divider()
                 
             except Exception as e:
                 progress_bar.progress(0)

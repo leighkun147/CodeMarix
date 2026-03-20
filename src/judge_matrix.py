@@ -52,6 +52,7 @@ RATE_LIMIT_CONFIG = {
     "openai": {"rpm": 3500, "min_delay": 0.3, "max_retries": 3},
     "anthropic": {"rpm": 50, "min_delay": 1.2, "max_retries": 3},
     "google": {"rpm": 15, "min_delay": 4.0, "max_retries": 5},  # Free tier: 15 RPM
+    "groq": {"rpm": 30, "min_delay": 0.5, "max_retries": 3},  # Groq free tier: generous
     "deepseek": {"rpm": 60, "min_delay": 1.0, "max_retries": 3},
 }
 
@@ -78,6 +79,8 @@ def _call_with_rate_limit_handling(api_func, prompt: str, api_key: str, model_na
         provider = "anthropic"
     elif "gemini" in model_name.lower():
         provider = "google"
+    elif "groq" in model_name.lower():
+        provider = "groq"
     elif "deepseek" in model_name.lower():
         provider = "deepseek"
     else:
@@ -161,6 +164,8 @@ def grade_code_with_api(code: str, problem: str, language: str,
             result = _call_with_rate_limit_handling(_grade_with_anthropic, prompt, api_key, reviewer_model)
         elif "Gemini" in reviewer_model or "gemini" in reviewer_model:
             result = _call_with_rate_limit_handling(_grade_with_google, prompt, api_key, reviewer_model)
+        elif "Groq" in reviewer_model or "groq" in reviewer_model:
+            result = _call_with_rate_limit_handling(_grade_with_groq, prompt, api_key, reviewer_model)
         elif "DeepSeek" in reviewer_model or "deepseek" in reviewer_model:
             result = _call_with_rate_limit_handling(_grade_with_deepseek, prompt, api_key, reviewer_model)
         else:
@@ -237,7 +242,7 @@ def _grade_with_google(prompt: str, api_key: str) -> Dict[str, int]:
         raise ValueError("Google API key is empty")
     
     try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.0-pro:generateContent?key={api_key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
         payload = {
             "contents": [{
                 "parts": [{
@@ -438,6 +443,61 @@ def _grade_with_anthropic(prompt: str, api_key: str) -> Dict[str, int]:
         raise
     except Exception as e:
         raise RuntimeError(f"Anthropic API call failed: {str(e)}")
+
+
+def _grade_with_groq(prompt: str, api_key: str) -> Dict[str, int]:
+    """Grade using Groq API. Raises exception on invalid key."""
+    if not api_key or not api_key.strip():
+        raise ValueError("Groq API key is empty")
+    
+    try:
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "model": "llama-3.3-70b-versatile",
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.3,
+            "max_tokens": 500
+        }
+        response = requests.post("https://api.groq.com/openai/v1/chat/completions",
+                                headers=headers, json=payload, timeout=30)
+        
+        if response.status_code == 401:
+            raise ValueError("Groq API key is invalid or expired (401 Unauthorized)")
+        elif response.status_code == 403:
+            raise ValueError("Groq API key is forbidden (403 Forbidden)")
+        elif response.status_code == 429:
+            raise RuntimeError("Groq API rate limit exceeded (429 - Too Many Requests)")
+        elif response.status_code == 400:
+            error_detail = response.json() if response.text else "Bad Request"
+            raise RuntimeError(f"Groq API Error 400 (Bad Request): {error_detail}")
+        elif response.status_code != 200:
+            error_msg = response.json().get("error", {}).get("message", f"Status {response.status_code}")
+            raise RuntimeError(f"Groq API Error: {error_msg}")
+        
+        response_text = response.json()["choices"][0]["message"]["content"]
+        
+        # Extract and validate JSON using robust parsing
+        scores_dict = _extract_json_from_response(response_text, "Groq")
+        
+        # Validate and normalize scores
+        result = {}
+        for r in RUBRIC:
+            if r not in scores_dict:
+                raise RuntimeError(f"Groq response missing criterion: {r}")
+            score = int(scores_dict[r])
+            result[r] = max(1, min(5, score))
+        
+        return result
+        
+    except requests.exceptions.Timeout:
+        raise RuntimeError("Groq API request timed out (30s)")
+    except ValueError:
+        raise
+    except Exception as e:
+        raise RuntimeError(f"Groq API call failed: {str(e)}")
 
 
 def peer_review_matrix(gen_results: Dict, models: List[str], api_keys: Dict[str, str] = None,
