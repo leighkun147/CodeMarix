@@ -242,15 +242,25 @@ def _grade_with_google(prompt: str, api_key: str) -> Dict[str, int]:
         raise ValueError("Google API key is empty")
     
     try:
+        # Try gemini-2.0-flash first
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
         payload = {
             "contents": [{
                 "parts": [{
                     "text": prompt
                 }]
-            }]
+            }],
+            "generationConfig": {
+                "temperature": 0.3,
+                "maxOutputTokens": 500
+            }
         }
         response = requests.post(url, json=payload, timeout=30)
+        
+        # If 400 or 404, try fallback to gemini-1.5-flash
+        if response.status_code in [400, 404]:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+            response = requests.post(url, json=payload, timeout=30)
         
         if response.status_code == 401:
             raise ValueError("Google API key is invalid or expired (401 Unauthorized)")

@@ -62,19 +62,34 @@ def call_anthropic_api(problem: str, language: str, api_key: str) -> str:
 def call_google_api(problem: str, language: str, api_key: str) -> str:
     """Call Google API (Gemini models) for code generation."""
     try:
+        # Try gemini-2.0-flash first, fall back to gemini-1.5-flash if needed
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
         payload = {
             "contents": [{
                 "parts": [{
                     "text": f"Write a {language} solution for: {problem}\nReturn only the code, no explanations."
                 }]
-            }]
+            }],
+            "generationConfig": {
+                "temperature": 0.7,
+                "maxOutputTokens": 1000
+            }
         }
         response = requests.post(url, json=payload, timeout=30)
         if response.status_code == 200:
             return response.json()["candidates"][0]["content"]["parts"][0]["text"]
+        elif response.status_code == 400:
+            # Try fallback to gemini-1.5-flash
+            url_fallback = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+            response_fallback = requests.post(url_fallback, json=payload, timeout=30)
+            if response_fallback.status_code == 200:
+                return response_fallback.json()["candidates"][0]["content"]["parts"][0]["text"]
+            else:
+                error_msg = response_fallback.json().get("error", {}).get("message", "Unknown error")
+                return f"# Google API Error: {response_fallback.status_code} - {error_msg}"
         else:
-            return f"# Google API Error: {response.status_code}"
+            error_msg = response.json().get("error", {}).get("message", f"Status {response.status_code}") if response.text else f"Status {response.status_code}"
+            return f"# Google API Error: {response.status_code} - {error_msg}"
     except Exception as e:
         return f"# Error calling Google: {str(e)}"
 
