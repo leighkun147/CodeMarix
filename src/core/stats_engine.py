@@ -6,15 +6,7 @@ Builds heatmaps, bar charts, and winner determination for the Current Session.
 from typing import Dict, List, Tuple
 import pandas as pd
 import numpy as np
-
-
-RUBRIC = [
-    "Syntactic Correctness",
-    "Algorithmic Efficiency",
-    "Readability & Documentation",
-    "Edge-Case Handling",
-    "Security Vulnerabilities"
-]
+from src.judge_matrix import RUBRIC
 
 
 def build_review_matrix(review_results: Dict) -> pd.DataFrame:
@@ -73,18 +65,22 @@ def get_overall_winner(leaderboard_df: pd.DataFrame) -> Tuple[str, float]:
     return winner, score
 
 
-def build_heatmap_data(review_results: Dict, metric: str = "Algorithmic Efficiency") -> np.ndarray:
+def build_heatmap_data(review_results: Dict, metric: str = None) -> Tuple[np.ndarray, List[str]]:
     """
     Build a heatmap showing how each model (reviewer) scored each model (reviewee)
     on a specific metric.
     
     Args:
         review_results: Review results dict
-        metric: The rubric criterion to visualize (e.g., "Algorithmic Efficiency")
+        metric: The rubric criterion to visualize (e.g., "Correctness & Accuracy")
+                If None, uses the first RUBRIC criterion
     
     Returns:
-        numpy array: M x M matrix where rows=reviewers, cols=reviewees
+        Tuple: (numpy array M x M matrix where rows=reviewers, cols=reviewees, models_list)
     """
+    # Use first RUBRIC item if no metric specified
+    if metric is None or metric not in RUBRIC:
+        metric = RUBRIC[0]
     models_set = set()
     scores_by_pair = {}
     

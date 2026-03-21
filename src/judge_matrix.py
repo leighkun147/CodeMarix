@@ -1,7 +1,7 @@
 """
 judge_matrix.py
-Peer-review matrix with actual code grading logic for CodexMatrix.
-Each model reviews every other model's code against a rubric.
+Peer-review matrix with comprehensive code grading logic for CodexMatrix.
+Each model reviews every other model's code against an advanced rubric.
 """
 from typing import Dict, List, Optional
 import requests
@@ -10,16 +10,23 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
+# Comprehensive benchmarking rubric (1-5 scale)
 RUBRIC = [
-    "Syntactic Correctness",
-    "Algorithmic Efficiency",
-    "Readability & Documentation",
-    "Edge-Case Handling",
-    "Security Vulnerabilities"
+    "Correctness & Accuracy",       # Does it produce correct output?
+    "Efficiency (Time)",             # Optimal time complexity?
+    "Efficiency (Space)",            # Optimal space/memory usage?
+    "Readability & Clear Code",      # Easy to understand & maintain?
+    "Documentation & Comments",      # Well-documented?
+    "Edge-Case Handling",            # Handles corner cases properly?
+    "Error Handling & Robustness",   # Graceful error management?
+    "Security & Safe Practices",     # Avoids vulnerabilities?
+    "Code Simplicity",               # Avoids unnecessary complexity?
+    "Best Practices & Standards"     # Follows language conventions?
 ]
 
 GRADING_PROMPT_TEMPLATE = """
-You are an expert code reviewer. Grade the following {language} code solution for this problem:
+You are an expert code reviewer grading across 10 dimensions.
+Grade the following {language} code solution STRICTLY on 1-5 scale.
 
 PROBLEM: {problem}
 
@@ -28,23 +35,32 @@ CODE TO REVIEW:
 {code}
 ```
 
-Rate the code on the following criteria (1-5 scale, where 1=Poor, 5=Excellent):
-
-1. Syntactic Correctness - Does the code compile/run without syntax errors?
-2. Algorithmic Efficiency - Is the algorithm optimal in terms of time and space complexity?
-3. Readability & Documentation - Is the code well-written and documented?
-4. Edge-Case Handling - Does it handle edge cases and boundary conditions?
-5. Security Vulnerabilities - Are there any security issues or best practices violations?
-
-IMPORTANT: You MUST respond with ONLY a valid JSON object, starting with {{ and ending with }}. Do not add any text before or after the JSON.
+Rate the code on EACH criterion below (1=Poor, 5=Excellent). Respond with ONLY a valid JSON object with no additional text:
 
 {{
-    "Syntactic Correctness": 5,
-    "Algorithmic Efficiency": 4,
-    "Readability & Documentation": 4,
-    "Edge-Case Handling": 3,
-    "Security Vulnerabilities": 4
+  "1": 5,
+  "2": 4,
+  "3": 4,
+  "4": 4,
+  "5": 3,
+  "6": 4,
+  "7": 3,
+  "8": 5,
+  "9": 4,
+  "10": 4
 }}
+
+WHERE:
+1 = Correctness & Accuracy
+2 = Efficiency (Time)
+3 = Efficiency (Space)
+4 = Readability & Clear Code
+5 = Documentation & Comments
+6 = Edge-Case Handling
+7 = Error Handling & Robustness
+8 = Security & Safe Practices
+9 = Code Simplicity
+10 = Best Practices & Standards
 """
 
 # Rate limiting configuration
@@ -187,6 +203,68 @@ def grade_code_with_api(code: str, problem: str, language: str,
         raise RuntimeError(f"Error grading with {reviewer_model}: {str(e)}")
 
 
+def _normalize_json_keys(scores_dict: dict) -> dict:
+    """
+    Normalize dictionary keys by mapping numeric indices to RUBRIC criteria.
+    Also handles string keys with criterion names for backward compatibility.
+    
+    Args:
+        scores_dict: Raw dictionary from JSON parse
+    
+    Returns:
+        Normalized dictionary with RUBRIC keys
+    
+    Raises:
+        RuntimeError: If keys cannot be mapped to RUBRIC
+    """
+    if not isinstance(scores_dict, dict):
+        raise RuntimeError(f"Expected dict, got {type(scores_dict)}: {str(scores_dict)[:200]}")
+    
+    normalized = {}
+    
+    # Try numeric key mapping first (new format: "1", "2", etc.)
+    numeric_indices = {}
+    for key, value in scores_dict.items():
+        try:
+            # Try to convert key to integer
+            idx = int(str(key).strip('"\''))
+            if 1 <= idx <= len(RUBRIC):
+                numeric_indices[idx] = value
+        except (ValueError, TypeError):
+            pass
+    
+    # If we got all 10 numeric keys, use them
+    if len(numeric_indices) == 10:
+        for idx in range(1, 11):
+            normalized[RUBRIC[idx - 1]] = numeric_indices[idx]
+        return normalized
+    
+    # Fallback: try string key matching (old format with criterion names)
+    rubric_normalized = {r.strip().lower(): r for r in RUBRIC}
+    
+    for key, value in scores_dict.items():
+        # Strip whitespace, newlines, and quotes from key
+        clean_key = key.strip().lower() if isinstance(key, str) else str(key).strip().lower()
+        # Remove any quotes that might be in the key
+        clean_key = clean_key.strip('\'"').strip()
+        
+        # Find matching RUBRIC entry
+        if clean_key in rubric_normalized:
+            actual_key = rubric_normalized[clean_key]
+            normalized[actual_key] = value
+        else:
+            # Try fuzzy matching for partial matches
+            found = False
+            for rubric_key in rubric_normalized.keys():
+                if rubric_key in clean_key or clean_key in rubric_key:
+                    actual_key = rubric_normalized[rubric_key]
+                    normalized[actual_key] = value
+                    found = True
+                    break
+    
+    return normalized
+
+
 def _extract_json_from_response(response_text: str, model_name: str) -> dict:
     """
     Robustly extract and parse JSON from LLM response.
@@ -197,7 +275,7 @@ def _extract_json_from_response(response_text: str, model_name: str) -> dict:
         model_name: Name of model (for error messages)
     
     Returns:
-        Parsed JSON dict
+        Parsed JSON dict with normalized keys
     
     Raises:
         RuntimeError: If JSON extraction/parsing fails
@@ -222,18 +300,42 @@ def _extract_json_from_response(response_text: str, model_name: str) -> dict:
     json_str = response_text[json_start:json_end + 1].strip()
     
     try:
-        return json.loads(json_str)
+        parsed = json.loads(json_str)
     except json.JSONDecodeError as e:
         # Try removing leading/trailing whitespace more aggressively
         json_str_cleaned = json_str.replace('\n', ' ').replace('\r', ' ')
         try:
-            return json.loads(json_str_cleaned)
+            parsed = json.loads(json_str_cleaned)
         except json.JSONDecodeError:
-            raise RuntimeError(
-                f"{model_name}: Failed to parse JSON\n"
-                f"Error: {str(e)}\n"
-                f"Attempted: {json_str[:300]}"
-            )
+            # Last resort: try to repair common JSON issues
+            try:
+                # Replace newlines with spaces in keys
+                json_str_repaired = json_str
+                # Try to find and fix quoted strings with internal newlines
+                import re
+                json_str_repaired = re.sub(r'"\s*\n\s*"', '", "', json_str_repaired)
+                parsed = json.loads(json_str_repaired)
+            except Exception:
+                raise RuntimeError(
+                    f"{model_name}: Failed to parse JSON\n"
+                    f"Error: {str(e)}\n"
+                    f"Attempted: {json_str[:300]}"
+                )
+    
+    if not isinstance(parsed, dict):
+        raise RuntimeError(f"{model_name}: JSON parsed but is not a dict, got {type(parsed)}")
+    
+    # Normalize keys to match RUBRIC exactly
+    try:
+        normalized = _normalize_json_keys(parsed)
+    except Exception as e:
+        raise RuntimeError(
+            f"{model_name}: Failed to normalize keys\n"
+            f"Error: {str(e)}\n"
+            f"Parsed keys: {list(parsed.keys())}"
+        )
+    
+    return normalized
 
 
 def _grade_with_google(prompt: str, api_key: str) -> Dict[str, int]:
@@ -281,13 +383,22 @@ def _grade_with_google(prompt: str, api_key: str) -> Dict[str, int]:
         # Extract and validate JSON
         scores_dict = _extract_json_from_response(response_text, "Google/Gemini")
         
+        # Validate all required criteria are present
+        missing_keys = [r for r in RUBRIC if r not in scores_dict]
+        if missing_keys:
+            raise RuntimeError(
+                f"Google response missing {len(missing_keys)} criteria: {', '.join(missing_keys)}\n"
+                f"Found keys: {list(scores_dict.keys())}"
+            )
+        
         # Validate and normalize scores
         result = {}
         for r in RUBRIC:
-            if r not in scores_dict:
-                raise RuntimeError(f"Google response missing criterion: {r}")
-            score = int(scores_dict[r])
-            result[r] = max(1, min(5, score))
+            try:
+                score = int(scores_dict[r])
+                result[r] = max(1, min(5, score))
+            except (ValueError, TypeError) as e:
+                raise RuntimeError(f"Invalid score for {r}: {scores_dict[r]} (expected 1-5 integer)")
         
         return result
         
@@ -335,13 +446,22 @@ def _grade_with_deepseek(prompt: str, api_key: str) -> Dict[str, int]:
         # Extract and validate JSON
         scores_dict = _extract_json_from_response(response_text, "DeepSeek")
         
+        # Validate all required criteria are present
+        missing_keys = [r for r in RUBRIC if r not in scores_dict]
+        if missing_keys:
+            raise RuntimeError(
+                f"DeepSeek response missing {len(missing_keys)} criteria: {', '.join(missing_keys)}\n"
+                f"Found keys: {list(scores_dict.keys())}"
+            )
+        
         # Validate and normalize scores
         result = {}
         for r in RUBRIC:
-            if r not in scores_dict:
-                raise RuntimeError(f"DeepSeek response missing criterion: {r}")
-            score = int(scores_dict[r])
-            result[r] = max(1, min(5, score))
+            try:
+                score = int(scores_dict[r])
+                result[r] = max(1, min(5, score))
+            except (ValueError, TypeError) as e:
+                raise RuntimeError(f"Invalid score for {r}: {scores_dict[r]} (expected 1-5 integer)")
         
         return result
         
@@ -385,13 +505,22 @@ def _grade_with_openai(prompt: str, api_key: str) -> Dict[str, int]:
         # Extract and validate JSON using robust parsing
         scores_dict = _extract_json_from_response(response_text, "OpenAI")
         
+        # Validate all required criteria are present
+        missing_keys = [r for r in RUBRIC if r not in scores_dict]
+        if missing_keys:
+            raise RuntimeError(
+                f"OpenAI response missing {len(missing_keys)} criteria: {', '.join(missing_keys)}\n"
+                f"Found keys: {list(scores_dict.keys())}"
+            )
+        
         # Validate and normalize scores
         result = {}
         for r in RUBRIC:
-            if r not in scores_dict:
-                raise RuntimeError(f"OpenAI response missing criterion: {r}")
-            score = int(scores_dict[r])
-            result[r] = max(1, min(5, score))
+            try:
+                score = int(scores_dict[r])
+                result[r] = max(1, min(5, score))
+            except (ValueError, TypeError) as e:
+                raise RuntimeError(f"Invalid score for {r}: {scores_dict[r]} (expected 1-5 integer)")
         
         return result
         
@@ -437,13 +566,22 @@ def _grade_with_anthropic(prompt: str, api_key: str) -> Dict[str, int]:
         # Extract and validate JSON using robust parsing
         scores_dict = _extract_json_from_response(response_text, "Anthropic")
         
+        # Validate all required criteria are present
+        missing_keys = [r for r in RUBRIC if r not in scores_dict]
+        if missing_keys:
+            raise RuntimeError(
+                f"Anthropic response missing {len(missing_keys)} criteria: {', '.join(missing_keys)}\n"
+                f"Found keys: {list(scores_dict.keys())}"
+            )
+        
         # Validate and normalize scores
         result = {}
         for r in RUBRIC:
-            if r not in scores_dict:
-                raise RuntimeError(f"Anthropic response missing criterion: {r}")
-            score = int(scores_dict[r])
-            result[r] = max(1, min(5, score))
+            try:
+                score = int(scores_dict[r])
+                result[r] = max(1, min(5, score))
+            except (ValueError, TypeError) as e:
+                raise RuntimeError(f"Invalid score for {r}: {scores_dict[r]} (expected 1-5 integer)")
         
         return result
         
@@ -492,13 +630,22 @@ def _grade_with_groq(prompt: str, api_key: str) -> Dict[str, int]:
         # Extract and validate JSON using robust parsing
         scores_dict = _extract_json_from_response(response_text, "Groq")
         
+        # Validate all required criteria are present
+        missing_keys = [r for r in RUBRIC if r not in scores_dict]
+        if missing_keys:
+            raise RuntimeError(
+                f"Groq response missing {len(missing_keys)} criteria: {', '.join(missing_keys)}\n"
+                f"Found keys: {list(scores_dict.keys())}"
+            )
+        
         # Validate and normalize scores
         result = {}
         for r in RUBRIC:
-            if r not in scores_dict:
-                raise RuntimeError(f"Groq response missing criterion: {r}")
-            score = int(scores_dict[r])
-            result[r] = max(1, min(5, score))
+            try:
+                score = int(scores_dict[r])
+                result[r] = max(1, min(5, score))
+            except (ValueError, TypeError) as e:
+                raise RuntimeError(f"Invalid score for {r}: {scores_dict[r]} (expected 1-5 integer)")
         
         return result
         

@@ -80,37 +80,130 @@ if "session_initialized" not in st.session_state:
     st.session_state.stats_complete = False
     st.session_state.benchmark_running = False
     st.session_state.error_messages = []
+    st.session_state.current_theme = "Dark Midnight"
 
 # ============================================================================
 # UI STYLING & CONSTANTS
 # ============================================================================
 
-st.markdown("""
-<style>
-    .main { background-color: #0a0e27; }
-    .stButton>button { 
-        background-color: #00d9ff; 
-        color: #0a0e27;
-        font-weight: bold;
-        border-radius: 5px;
+# Define multiple professional themes
+THEMES = {
+    "Dark Midnight": {
+        "bg_main": "#0a0e27",
+        "bg_secondary": "#1a1f3a",
+        "accent": "#00d9ff",
+        "accent_alt": "#00ff00",
+        "text": "#ffffff",
+        "border": "#2a3f5f"
+    },
+    "Neon Cyberpunk": {
+        "bg_main": "#0d0221",
+        "bg_secondary": "#1a0033",
+        "accent": "#ff006e",
+        "accent_alt": "#00f5ff",
+        "text": "#ffffff",
+        "border": "#3d0066"
+    },
+    "Ocean Blue": {
+        "bg_main": "#0f1419",
+        "bg_secondary": "#1a2332",
+        "accent": "#00b4d8",
+        "accent_alt": "#0096c7",
+        "text": "#e8f4f8",
+        "border": "#264653"
+    },
+    "Forest Green": {
+        "bg_main": "#0b3d2c",
+        "bg_secondary": "#1a5f4a",
+        "accent": "#52b788",
+        "accent_alt": "#74c69d",
+        "text": "#f1faee",
+        "border": "#2d6a4f"
+    },
+    "Sunset Glow": {
+        "bg_main": "#2d1b00",
+        "bg_secondary": "#5a3f2a",
+        "accent": "#ff9500",
+        "accent_alt": "#ffb703",
+        "text": "#fffbf0",
+        "border": "#8b4513"
+    },
+    "Purple Haze": {
+        "bg_main": "#1a0033",
+        "bg_secondary": "#2d0052",
+        "accent": "#a370f0",
+        "accent_alt": "#c77dff",
+        "text": "#f0e6ff",
+        "border": "#5a189a"
     }
-    .metric-card {
-        background-color: #1a1f3a;
-        border-left: 4px solid #00d9ff;
-        padding: 20px;
-        border-radius: 5px;
-        margin: 10px 0;
-    }
-    .winner-announcement {
-        background-color: #1a3a1a;
-        border: 2px solid #00ff00;
-        padding: 20px;
-        border-radius: 8px;
-        text-align: center;
-        font-size: 20px;
-    }
-</style>
-""", unsafe_allow_html=True)
+}
+
+def apply_theme(theme_name):
+    """Apply theme with CSS styling"""
+    theme = THEMES[theme_name]
+    st.markdown(f"""
+    <style>
+        body {{
+            background-color: {theme['bg_main']};
+            color: {theme['text']};
+        }}
+        .main {{
+            background-color: {theme['bg_main']};
+        }}
+        .stButton>button {{
+            background: linear-gradient(135deg, {theme['accent']} 0%, {theme['accent_alt']} 100%);
+            color: {theme['bg_main']};
+            font-weight: bold;
+            border-radius: 8px;
+            border: none;
+            padding: 10px 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }}
+        .stButton>button:hover {{
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+        }}
+        .metric-card {{
+            background-color: {theme['bg_secondary']};
+            border-left: 4px solid {theme['accent']};
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        }}
+        .winner-announcement {{
+            background: linear-gradient(135deg, {theme['accent']}, {theme['accent_alt']});
+            border: 2px solid {theme['accent']};
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            font-size: 22px;
+            font-weight: bold;
+            color: {theme['bg_main']};
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+        }}
+        .leaderboard-header {{
+            background: linear-gradient(90deg, {theme['accent']}, {theme['accent_alt']});
+            color: {theme['bg_main']};
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 18px;
+        }}
+        .stTabs [role="tablist"] button {{
+            background-color: {theme['bg_secondary']};
+            border: 1px solid {theme['border']};
+            color: {theme['text']};
+        }}
+        .stTabs [role="tablist"] button[aria-selected="true"] {{
+            background-color: {theme['accent']};
+            color: {theme['bg_main']};
+        }}
+    </style>
+    """, unsafe_allow_html=True)
+
+# Apply default theme on page load
+apply_theme(st.session_state.current_theme)
 
 AVAILABLE_MODELS = [
     "Gemini 2.0 Flash",
@@ -145,9 +238,23 @@ st.markdown("""
 # ============================================================================
 
 with st.sidebar:
-    st.header("🛠️ Session Setup")
+    st.header("🛠️ CodexMatrix Control Panel")
     
-    # Step 1: Problem Input
+    # Theme Selector
+    st.divider()
+    st.subheader("🎨 Theme Selector")
+    theme_index = list(THEMES.keys()).index(st.session_state.current_theme)
+    selected_theme = st.selectbox(
+        "Choose Visual Theme",
+        list(THEMES.keys()),
+        index=theme_index,
+        help="Switch between different color schemes"
+    )
+    if selected_theme != st.session_state.current_theme:
+        st.session_state.current_theme = selected_theme
+        st.rerun()
+    
+    st.divider()
     st.subheader("Step 1: Enter Coding Problems")
     st.caption("Add up to 5 coding challenges (saved automatically)")
     
@@ -240,8 +347,11 @@ with st.sidebar:
     cols = st.columns(2)
     
     with cols[0]:
-        use_mock = st.checkbox(
+        if "use_mock" not in st.session_state:
+            st.session_state.use_mock = False
+        st.session_state.use_mock = st.checkbox(
             "🎭 Use Mock Data (Testing Only)",
+            value=st.session_state.use_mock,
             help="⚠️ TESTING ONLY: Use fake data without API costs. "
                  "NOT suitable for research papers - results are simulated, not real LLM grading."
         )
@@ -276,7 +386,7 @@ def validate_session_inputs() -> tuple[bool, list]:
     if not st.session_state.languages:
         errors.append("❌ Please select at least 1 programming language")
     
-    if not use_mock:
+    if not st.session_state.use_mock:
         missing_keys = [m for m in st.session_state.models 
                        if not st.session_state.api_keys.get(m, "").strip()]
         if missing_keys:
@@ -324,7 +434,7 @@ if launch_benchmark:
                     languages=st.session_state.languages,
                     models=st.session_state.models,
                     api_keys=st.session_state.api_keys,
-                    use_mock=use_mock
+                    use_mock=st.session_state.use_mock
                 )
                 
                 progress_bar.progress(100)
@@ -382,7 +492,7 @@ if launch_benchmark:
                     gen_results=st.session_state.generation_results,
                     models=st.session_state.models,
                     api_keys=st.session_state.api_keys,
-                    use_mock=use_mock
+                    use_mock=st.session_state.use_mock
                 )
                 
                 progress_bar.progress(100)
@@ -505,11 +615,11 @@ if launch_benchmark:
         ])
         
         with tab1:
-            st.subheader("Peer Review Heatmap (Algorithmic Efficiency)")
+            st.subheader("Peer Review Heatmap (Correctness & Accuracy)")
             try:
                 matrix, models_list = build_heatmap_data(
                     st.session_state.review_results,
-                    metric="Algorithmic Efficiency"
+                    metric="Correctness & Accuracy"
                 )
                 
                 fig = go.Figure(data=go.Heatmap(
