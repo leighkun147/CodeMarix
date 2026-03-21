@@ -9,7 +9,6 @@ font = "sans serif"
 showErrorDetails = true
 
 [logger]
-level = "info"
-
+level = "debug"
 [browser]
 gatherUsageStats = false
