@@ -187,12 +187,17 @@ Input: {generated_code, problem, language, reviewer_model, api_key}
 Output: {rubric_criterion: score, ...}
 ```
 
-**Rubric** (5 criteria):
-1. **Syntactic Correctness** - Does the code compile/run without errors?
-2. **Algorithmic Efficiency** - Is the algorithm optimal in time/space complexity?
-3. **Readability & Documentation** - Is the code well-written and documented?
-4. **Edge-Case Handling** - Does it handle boundary conditions and edge cases?
-5. **Security Vulnerabilities** - Are there any security issues or best practices violations?
+**Rubric** (10 criteria):
+1. **Correctness & Accuracy** - Does the solution produce correct output?
+2. **Efficiency (Time)** - Optimal time complexity (O(n), O(log n), O(n²), etc.)?
+3. **Efficiency (Space)** - Minimal memory usage without bloat?
+4. **Readability & Clear Code** - Easy to understand at first glance?
+5. **Documentation & Comments** - Well-commented and documented?
+6. **Edge-Case Handling** - Handles all boundary conditions and edge cases?
+7. **Error Handling & Robustness** - Graceful error management and input validation?
+8. **Security & Safe Practices** - Avoids vulnerabilities and unsafe patterns?
+9. **Code Simplicity** - Elegant solution without unnecessary complexity?
+10. **Best Practices & Standards** - Follows language conventions and idioms?
 
 **Key Functions**:
 - `peer_review_matrix()` - Creates M×M review matrix (each model grades others)
@@ -258,11 +263,16 @@ Values = Average score given
 # Leaderboard
 {
     "GPT-4o": {
-        "Syntactic Correctness": 4.8,
-        "Algorithmic Efficiency": 4.2,
-        "Readability & Documentation": 4.5,
-        "Edge-Case Handling": 4.1,
-        "Security Vulnerabilities": 4.3
+        "Correctness & Accuracy": 4.8,
+        "Efficiency (Time)": 4.2,
+        "Efficiency (Space)": 4.1,
+        "Readability & Clear Code": 4.5,
+        "Documentation & Comments": 4.3,
+        "Edge-Case Handling": 4.2,
+        "Error Handling & Robustness": 4.1,
+        "Security & Safe Practices": 4.4,
+        "Code Simplicity": 4.3,
+        "Best Practices & Standards": 4.2
     },
     "Claude 3.5 Sonnet": {...}
 }

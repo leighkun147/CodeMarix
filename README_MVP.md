@@ -177,13 +177,18 @@ streamlit run app.py
 
 ## 🎯 The Rubric (How Models Are Scored)
 
-Each model's code is graded on 5 criteria (1-5 scale):
+Each model's code is graded on 10 comprehensive criteria (1-5 scale):
 
-1. **Syntactic Correctness** - Does the code run? No bugs?
-2. **Algorithmic Efficiency** - Is the algorithm optimal?
-3. **Readability & Documentation** - Is it well-written?
-4. **Edge-Case Handling** - Does it handle boundary conditions?
-5. **Security Vulnerabilities** - Any security issues?
+1. **Correctness & Accuracy** - Does the solution produce correct output?
+2. **Efficiency (Time)** - Optimal time complexity?
+3. **Efficiency (Space)** - Minimal memory usage?
+4. **Readability & Clear Code** - Easy to understand?
+5. **Documentation & Comments** - Well-documented?
+6. **Edge-Case Handling** - Handles boundary conditions?
+7. **Error Handling & Robustness** - Graceful error management?
+8. **Security & Safe Practices** - Any security issues?
+9. **Code Simplicity** - Elegant without unnecessary complexity?
+10. **Best Practices & Standards** - Follows language conventions?
 
 **Winner** = Model with highest average score across all criteria
 

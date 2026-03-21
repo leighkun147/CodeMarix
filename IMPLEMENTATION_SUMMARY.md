@@ -94,12 +94,17 @@ database/
 - `_grade_with_openai()` - OpenAI grader
 - `_grade_with_anthropic()` - Anthropic grader
 
-**Rubric**:
-1. Syntactic Correctness (does code run?)
-2. Algorithmic Efficiency (optimal algorithm?)
-3. Readability & Documentation (code quality?)
-4. Edge-Case Handling (boundary conditions?)
-5. Security Vulnerabilities (safe code?)
+**Rubric** (10 criteria):
+1. Correctness & Accuracy (correct output?)
+2. Efficiency (Time) (optimal time complexity?)
+3. Efficiency (Space) (minimal memory usage?)
+4. Readability & Clear Code (easy to understand?)
+5. Documentation & Comments (well-documented?)
+6. Edge-Case Handling (boundary conditions?)
+7. Error Handling & Robustness (error management?)
+8. Security & Safe Practices (safe code?)
+9. Code Simplicity (elegant without complexity?)
+10. Best Practices & Standards (language conventions?)
 
 ### 3. ✅ Production Application
 
