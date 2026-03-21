@@ -249,11 +249,11 @@ with st.sidebar:
     launch_benchmark = st.button(
         "🚀 Start Benchmark",
         key="launch_btn",
-        use_container_width=True
+        width='stretch'
     )
     
     with cols[1]:
-        if st.button("🗑️ Clear Saved Data", use_container_width=True, key="clear_btn"):
+        if st.button("🗑️ Clear Saved Data", width='stretch', key="clear_btn"):
             save_preferences({})
             st.success("✅ All saved data cleared!")
             st.rerun()
@@ -490,7 +490,7 @@ if launch_benchmark:
         
         st.dataframe(
             leaderboard_display.round(2),
-            use_container_width=True,
+            width='stretch',
             height=300
         )
         
@@ -527,7 +527,7 @@ if launch_benchmark:
                     yaxis_title="Reviewer (Grader)",
                     height=600
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
                 st.caption("Rows = Reviewers, Columns = Code Authors. Higher = Better scores given.")
                 
             except Exception as e:
@@ -550,7 +550,7 @@ if launch_benchmark:
                     color_continuous_scale='RdYlGn'
                 )
                 fig.update_layout(height=300, showlegend=False)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
         
         with tab3:
             st.subheader("Top Models Side-by-Side Comparison")
@@ -568,7 +568,7 @@ if launch_benchmark:
                 labels={"index": "Model", "value": "Score"},
                 height=400
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
         
         with tab4:
             st.subheader("📥 Download Raw Session Data")
