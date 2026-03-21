@@ -7,8 +7,11 @@ font = "sans serif"
 
 [client]
 showErrorDetails = true
+showSidebarNavigation = false
 
 [logger]
 level = "debug"
+
 [browser]
 gatherUsageStats = false
+serverAddress = "localhost"

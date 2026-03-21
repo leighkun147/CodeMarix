@@ -27,6 +27,12 @@ from src.core.stats_engine import (
     generate_summary_stats
 )
 from src.utils.data_sanitizer import sanitize_session_data
+from src.ui_components import (
+    apply_military_theme,
+    radar_analysis_section,
+    display_military_header,
+    MILITARY_THEME
+)
 
 
 # ============================================================================
@@ -59,10 +65,13 @@ def save_preferences(prefs: dict):
 # ============================================================================
 
 st.set_page_config(
-    page_title="CodexMatrix MVP",
+    page_title="CodexMatrix MVP - Military Command Center",
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# Apply military command center theme
+apply_military_theme()
 
 # Load saved preferences from disk
 saved_prefs = load_preferences()
@@ -80,130 +89,12 @@ if "session_initialized" not in st.session_state:
     st.session_state.stats_complete = False
     st.session_state.benchmark_running = False
     st.session_state.error_messages = []
-    st.session_state.current_theme = "Dark Midnight"
 
 # ============================================================================
-# UI STYLING & CONSTANTS
+# UI STYLING & CONSTANTS - Using Military Command Center Theme
 # ============================================================================
-
-# Define multiple professional themes
-THEMES = {
-    "Dark Midnight": {
-        "bg_main": "#0a0e27",
-        "bg_secondary": "#1a1f3a",
-        "accent": "#00d9ff",
-        "accent_alt": "#00ff00",
-        "text": "#ffffff",
-        "border": "#2a3f5f"
-    },
-    "Neon Cyberpunk": {
-        "bg_main": "#0d0221",
-        "bg_secondary": "#1a0033",
-        "accent": "#ff006e",
-        "accent_alt": "#00f5ff",
-        "text": "#ffffff",
-        "border": "#3d0066"
-    },
-    "Ocean Blue": {
-        "bg_main": "#0f1419",
-        "bg_secondary": "#1a2332",
-        "accent": "#00b4d8",
-        "accent_alt": "#0096c7",
-        "text": "#e8f4f8",
-        "border": "#264653"
-    },
-    "Forest Green": {
-        "bg_main": "#0b3d2c",
-        "bg_secondary": "#1a5f4a",
-        "accent": "#52b788",
-        "accent_alt": "#74c69d",
-        "text": "#f1faee",
-        "border": "#2d6a4f"
-    },
-    "Sunset Glow": {
-        "bg_main": "#2d1b00",
-        "bg_secondary": "#5a3f2a",
-        "accent": "#ff9500",
-        "accent_alt": "#ffb703",
-        "text": "#fffbf0",
-        "border": "#8b4513"
-    },
-    "Purple Haze": {
-        "bg_main": "#1a0033",
-        "bg_secondary": "#2d0052",
-        "accent": "#a370f0",
-        "accent_alt": "#c77dff",
-        "text": "#f0e6ff",
-        "border": "#5a189a"
-    }
-}
-
-def apply_theme(theme_name):
-    """Apply theme with CSS styling"""
-    theme = THEMES[theme_name]
-    st.markdown(f"""
-    <style>
-        body {{
-            background-color: {theme['bg_main']};
-            color: {theme['text']};
-        }}
-        .main {{
-            background-color: {theme['bg_main']};
-        }}
-        .stButton>button {{
-            background: linear-gradient(135deg, {theme['accent']} 0%, {theme['accent_alt']} 100%);
-            color: {theme['bg_main']};
-            font-weight: bold;
-            border-radius: 8px;
-            border: none;
-            padding: 10px 20px;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }}
-        .stButton>button:hover {{
-            transform: translateY(-2px);
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
-        }}
-        .metric-card {{
-            background-color: {theme['bg_secondary']};
-            border-left: 4px solid {theme['accent']};
-            border-radius: 8px;
-            padding: 20px;
-            margin: 15px 0;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
-        }}
-        .winner-announcement {{
-            background: linear-gradient(135deg, {theme['accent']}, {theme['accent_alt']});
-            border: 2px solid {theme['accent']};
-            padding: 30px;
-            border-radius: 12px;
-            text-align: center;
-            font-size: 22px;
-            font-weight: bold;
-            color: {theme['bg_main']};
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
-        }}
-        .leaderboard-header {{
-            background: linear-gradient(90deg, {theme['accent']}, {theme['accent_alt']});
-            color: {theme['bg_main']};
-            padding: 15px;
-            border-radius: 8px;
-            font-weight: bold;
-            font-size: 18px;
-        }}
-        .stTabs [role="tablist"] button {{
-            background-color: {theme['bg_secondary']};
-            border: 1px solid {theme['border']};
-            color: {theme['text']};
-        }}
-        .stTabs [role="tablist"] button[aria-selected="true"] {{
-            background-color: {theme['accent']};
-            color: {theme['bg_main']};
-        }}
-    </style>
-    """, unsafe_allow_html=True)
-
-# Apply default theme on page load
-apply_theme(st.session_state.current_theme)
+# Military theme is applied globally via apply_military_theme()
+# Theme colors defined in src/ui_components.py
 
 AVAILABLE_MODELS = [
     "Gemini 2.0 Flash",
@@ -222,15 +113,18 @@ AVAILABLE_LANGUAGES = [
 # MAIN UI: HEADER & INSTRUCTIONS
 # ============================================================================
 
-st.title("⚔️ CodexMatrix: The Session-Only AI Code Benchmarking Engine")
+st.title("⚔️ CODEXMATRIX: MILITARY AI COMMAND CENTER")
 st.markdown("""
-**CodexMatrix** evaluates code-generating AI models using a peer-review matrix ($M^2$).
-- 🚀 **Single-Session Workflow**: No database, no persistence
-- 🔐 **Privacy First**: API keys stay in RAM, cleared when browser closes
-- ⚡ **Real-Time Analysis**: Live heatmaps and winner determination
-- 📊 **Peer Review**: Each model reviews every other model's code
-- 💾 **Form Memory**: Your problems, models, languages, and API keys are saved locally and restored on your next visit
+**🎯 TACTICAL BENCHMARKING SYSTEM** - Peer-Review Matrix Operations ($M^2$)
 
+⚡ **OPERATIONAL CAPABILITIES**:
+- 🚀 Single-Session Workflow - No persistence, RAM-only volatile memory
+- 🔐 Classified Security Protocol - API keys encrypted in memory, terminated on exit
+- 📡 Real-Time Tactical Display - Live heatmaps and adversary analysis
+- ⚔️ Peer Review Operations - Each unit evaluates every other unit
+- 💾 Mission Configuration - Auto-save deployment parameters and keys
+
+**STATUS**: 🟢 SYSTEM ONLINE | READY FOR DEPLOYMENT
 """)
 
 # ============================================================================
@@ -239,21 +133,6 @@ st.markdown("""
 
 with st.sidebar:
     st.header("🛠️ CodexMatrix Control Panel")
-    
-    # Theme Selector
-    st.divider()
-    st.subheader("🎨 Theme Selector")
-    theme_index = list(THEMES.keys()).index(st.session_state.current_theme)
-    selected_theme = st.selectbox(
-        "Choose Visual Theme",
-        list(THEMES.keys()),
-        index=theme_index,
-        help="Switch between different color schemes"
-    )
-    if selected_theme != st.session_state.current_theme:
-        st.session_state.current_theme = selected_theme
-        st.rerun()
-    
     st.divider()
     st.subheader("Step 1: Enter Coding Problems")
     st.caption("Add up to 5 coding challenges (saved automatically)")
@@ -451,6 +330,7 @@ if launch_benchmark:
                 st.subheader("🔎 Generated Code Details")
                 
                 for problem in st.session_state.problems:
+                    # Use native st.expander to avoid state loss issues
                     with st.expander(f"📌 Problem: {problem[:60]}..."):
                         for language in st.session_state.languages:
                             st.write(f"**Language: {language}**")
@@ -607,10 +487,11 @@ if launch_benchmark:
         st.divider()
         
         # Tabbed visualizations
-        tab1, tab2, tab3, tab4 = st.tabs([
+        tab1, tab2, tab3, tab4, tab5 = st.tabs([
             "📊 Heatmap",
             "📈 Rankings by Criteria",
             "🎯 Top Models Comparison",
+            "🎯 TACTICAL RADAR",
             "💾 Raw Data"
         ])
         
@@ -681,6 +562,14 @@ if launch_benchmark:
             st.plotly_chart(fig, width='stretch')
         
         with tab4:
+            st.divider()
+            try:
+                radar_analysis_section(st.session_state.review_results, st.session_state.models)
+            except Exception as e:
+                st.error(f"❌ Error generating radar analysis: {str(e)}")
+                st.write(f"Debug info: {e}")
+        
+        with tab5:
             st.subheader("📥 Download Raw Session Data")
             
             # Prepare downloadable data
