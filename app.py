@@ -27,11 +27,14 @@ from src.core.stats_engine import (
     generate_summary_stats
 )
 from src.utils.data_sanitizer import sanitize_session_data
-from src.ui_components import (
-    apply_military_theme,
-    radar_analysis_section,
-    display_military_header,
-    MILITARY_THEME
+from src.new_ui_theme import (
+    apply_creative_theme,
+    create_stat_card,
+    create_winner_banner,
+    create_stat_grid,
+    display_formatted_dataframe,
+    create_metric_table,
+    CREATIVE_PALETTE
 )
 
 
@@ -65,13 +68,13 @@ def save_preferences(prefs: dict):
 # ============================================================================
 
 st.set_page_config(
-    page_title="CodexMatrix MVP - Military Command Center",
+    page_title="CodexMatrix MVP",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Apply military command center theme
-apply_military_theme()
+# Apply creative theme
+apply_creative_theme()
 
 # Load saved preferences from disk
 saved_prefs = load_preferences()
@@ -113,18 +116,15 @@ AVAILABLE_LANGUAGES = [
 # MAIN UI: HEADER & INSTRUCTIONS
 # ============================================================================
 
-st.title("⚔️ CODEXMATRIX: MILITARY AI COMMAND CENTER")
+st.title("⚔️ CodexMatrix: The Session-Only AI Code Benchmarking Engine")
 st.markdown("""
-**🎯 TACTICAL BENCHMARKING SYSTEM** - Peer-Review Matrix Operations ($M^2$)
+**CodexMatrix** evaluates code-generating AI models using a peer-review matrix ($M^2$).
+- 🚀 **Single-Session Workflow**: No database, no persistence
+- 🔐 **Privacy First**: API keys stay in RAM, cleared when browser closes
+- ⚡ **Real-Time Analysis**: Live heatmaps and winner determination
+- 📊 **Peer Review**: Each model reviews every other model's code
+- 💾 **Form Memory**: Your problems, models, languages, and API keys are saved locally and restored on your next visit
 
-⚡ **OPERATIONAL CAPABILITIES**:
-- 🚀 Single-Session Workflow - No persistence, RAM-only volatile memory
-- 🔐 Classified Security Protocol - API keys encrypted in memory, terminated on exit
-- 📡 Real-Time Tactical Display - Live heatmaps and adversary analysis
-- ⚔️ Peer Review Operations - Each unit evaluates every other unit
-- 💾 Mission Configuration - Auto-save deployment parameters and keys
-
-**STATUS**: 🟢 SYSTEM ONLINE | READY FOR DEPLOYMENT
 """)
 
 # ============================================================================
@@ -445,164 +445,327 @@ if launch_benchmark:
             st.error(f"❌ Error during analysis: {str(e)}")
             st.stop()
         
-        # ====== STEP D: DISPLAY RESULTS ======
-        st.header("🏆 Session Results & Winner Determination")
+        # ====== STEP D: DISPLAY RESULTS (TABBED ORGANIZATION) ======
+        st.header("🏆 Session Results & Analysis")
         
-        # Winner Announcement
-        if overall_winner:
-            st.markdown(f"""
-            <div class="winner-announcement">
-                🏆 <b>Session Winner: {overall_winner}</b> 🏆<br>
-                Overall Score: {winner_score}/5
-            </div>
-            """, unsafe_allow_html=True)
-        
-        st.divider()
-        
-        # Session Statistics
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.metric("Problems Tested", summary_stats["total_problems"])
-        with col2:
-            st.metric("Models Evaluated", summary_stats["total_models"])
-        with col3:
-            st.metric("Languages Used", summary_stats["total_languages"])
-        with col4:
-            st.metric("Total Reviews", summary_stats["total_reviews"])
-        
-        st.divider()
-        
-        # Leaderboard Table
-        st.subheader("📋 Overall Leaderboard (All Rubrics)")
-        leaderboard_display = leaderboard_df.copy()
-        leaderboard_display['Overall'] = leaderboard_display.mean(axis=1)
-        leaderboard_display = leaderboard_display.sort_values('Overall', ascending=False)
-        
-        st.dataframe(
-            leaderboard_display.round(2),
-            width='stretch',
-            height=300
-        )
-        
-        st.divider()
-        
-        # Tabbed visualizations
-        tab1, tab2, tab3, tab4, tab5 = st.tabs([
-            "📊 Heatmap",
-            "📈 Rankings by Criteria",
-            "🎯 Top Models Comparison",
-            "🎯 TACTICAL RADAR",
-            "💾 Raw Data"
+        # Main result tabs organized by category
+        main_tab1, main_tab2, main_tab3 = st.tabs([
+            "📊 OVERVIEW & RANKINGS",
+            "📈 VISUALIZATIONS & INSIGHTS",
+            "💾 DATA & EXPORT"
         ])
         
-        with tab1:
-            st.subheader("Peer Review Heatmap (Correctness & Accuracy)")
-            try:
-                matrix, models_list = build_heatmap_data(
-                    st.session_state.review_results,
-                    metric="Correctness & Accuracy"
-                )
-                
-                fig = go.Figure(data=go.Heatmap(
-                    z=matrix,
-                    x=models_list,
-                    y=models_list,
-                    colorscale='Viridis',
-                    text=matrix,
-                    texttemplate='%{text:.2f}',
-                    textfont={"size": 10}
-                ))
-                fig.update_layout(
-                    title="How did each model score others on Algorithmic Efficiency?",
-                    xaxis_title="Reviewee (Code Author)",
-                    yaxis_title="Reviewer (Grader)",
-                    height=600
-                )
-                st.plotly_chart(fig, width='stretch')
-                st.caption("Rows = Reviewers, Columns = Code Authors. Higher = Better scores given.")
-                
-            except Exception as e:
-                st.error(f"Could not generate heatmap: {e}")
-        
-        with tab2:
-            st.subheader("Performance Across All Rubric Criteria")
+        # ========== TAB 1: OVERVIEW & RANKINGS ==========
+        with main_tab1:
+            st.subheader("🎯 Winner & Summary")
             
-            # Create bar chart for each criterion
-            rubric_comparison = build_rubric_comparison(leaderboard_df.copy(), top_n=len(st.session_state.models))
+            # Winner Announcement
+            if overall_winner:
+                st.markdown(create_winner_banner(overall_winner, winner_score), unsafe_allow_html=True)
             
-            for criterion in RUBRIC:
-                scores = [rubric_comparison[model].get(criterion, 0) for model in rubric_comparison.keys()]
-                fig = px.bar(
-                    x=list(rubric_comparison.keys()),
-                    y=scores,
-                    title=f"{criterion}",
-                    labels={"x": "Model", "y": "Score (1-5)"},
-                    color=scores,
-                    color_continuous_scale='RdYlGn'
-                )
-                fig.update_layout(height=300, showlegend=False)
-                st.plotly_chart(fig, width='stretch')
-        
-        with tab3:
-            st.subheader("Top Models Side-by-Side Comparison")
+            st.divider()
             
-            top_n = min(3, len(st.session_state.models))
-            rubric_comp = build_rubric_comparison(leaderboard_df.copy(), top_n=top_n)
+            # Session Statistics with creative cards
+            col_stats = st.columns(4)
+            stats_data = [
+                ("Problems", str(summary_stats["total_problems"]), "📝"),
+                ("Models", str(summary_stats["total_models"]), "🤖"),
+                ("Languages", str(summary_stats["total_languages"]), "💻"),
+                ("Reviews", str(summary_stats["total_reviews"]), "📋"),
+            ]
             
-            comparison_df = pd.DataFrame(rubric_comp).T
-            comparison_df = comparison_df[RUBRIC]
+            for col, (label, value, icon) in zip(col_stats, stats_data):
+                with col:
+                    st.markdown(create_stat_card(label, value, icon), unsafe_allow_html=True)
             
-            fig = px.bar(
-                comparison_df,
-                barmode='group',
-                title=f"Top {top_n} Models Comparison",
-                labels={"index": "Model", "value": "Score"},
+            st.divider()
+            
+            # Leaderboard Table
+            st.subheader("📋 Overall Leaderboard")
+            leaderboard_display = leaderboard_df.copy()
+            leaderboard_display['Overall'] = leaderboard_display.mean(axis=1)
+            leaderboard_display = leaderboard_display.sort_values('Overall', ascending=False)
+            
+            st.dataframe(
+                leaderboard_display.round(2),
+                use_container_width=True,
                 height=400
             )
-            st.plotly_chart(fig, width='stretch')
-        
-        with tab4:
+            
+            # Additional summary info
             st.divider()
-            try:
-                radar_analysis_section(st.session_state.review_results, st.session_state.models)
-            except Exception as e:
-                st.error(f"❌ Error generating radar analysis: {str(e)}")
-                st.write(f"Debug info: {e}")
+            st.subheader("📌 Consensus Scores Summary")
+            
+            # Format consensus scores and display as beautiful chart
+            if isinstance(consensus_scores, dict) and consensus_scores:
+                # Aggregate consensus scores across all models for each rubric dimension
+                rubric_scores = {}
+                
+                # Flatten the nested structure: {model: {rubric: score}} -> {rubric: [scores]}
+                for model, rubrics in consensus_scores.items():
+                    if isinstance(rubrics, dict):
+                        for rubric, score in rubrics.items():
+                            if rubric not in rubric_scores:
+                                rubric_scores[rubric] = []
+                            if isinstance(score, (int, float)):
+                                rubric_scores[rubric].append(score)
+                
+                # Calculate consensus (average) for each rubric dimension
+                consensus_data = {
+                    rubric: round(sum(scores) / len(scores), 2)
+                    for rubric, scores in rubric_scores.items()
+                    if scores
+                }
+                
+                # Create dataframe from consensus scores
+                consensus_df = pd.DataFrame(
+                    list(consensus_data.items()),
+                    columns=['Dimension', 'Score']
+                ).sort_values('Score', ascending=False)
+                
+                # Create beautiful bar chart
+                fig = px.bar(
+                    consensus_df,
+                    x='Score',
+                    y='Dimension',
+                    orientation='h',
+                    title='Consensus Scores Across All Rubric Dimensions',
+                    labels={'Score': 'Average Score (1-5)', 'Dimension': 'Rubric Dimension'},
+                    color='Score',
+                    color_continuous_scale=['#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e'],
+                    height=500
+                )
+                
+                fig.update_layout(
+                    xaxis_range=[0, 5],
+                    hovermode='closest',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    font=dict(size=12),
+                    showlegend=False,
+                    margin=dict(l=200, r=50, t=50, b=50)
+                )
+                
+                fig.update_traces(
+                    text=consensus_df['Score'].round(2),
+                    textposition='outside',
+                    hovertemplate='<b>%{y}</b><br>Score: %{x:.2f}/5.0<extra></extra>'
+                )
+                
+                st.plotly_chart(fig, use_container_width=True)
+                
+                # Also show as sortable table
+                with st.expander("📊 View as Data Table"):
+                    st.dataframe(
+                        consensus_df.round(2),
+                        use_container_width=True,
+                        hide_index=True,
+                        column_config={
+                            "Dimension": st.column_config.TextColumn("📋 Rubric Dimension"),
+                            "Score": st.column_config.ProgressColumn(
+                                "⭐ Score",
+                                min_value=0,
+                                max_value=5
+                            )
+                        }
+                    )
+            else:
+                st.warning("Unable to display consensus scores in expected format")
         
-        with tab5:
-            st.subheader("📥 Download Raw Session Data")
+        # ========== TAB 2: VISUALIZATIONS & INSIGHTS ==========
+        with main_tab2:
+            # Sub-tabs for different visualization types
+            viz_tab1, viz_tab2, viz_tab3 = st.tabs([
+                "🔥 Peer Review Heatmap",
+                "📊 Performance by Criteria",
+                "🏅 Top Models Comparison"
+            ])
             
-            # Prepare downloadable data
-            export_data = {
-                "session_info": {
-                    "start_time": st.session_state.session_start.isoformat(),
-                    "models": st.session_state.models,
-                    "languages": st.session_state.languages,
-                    "problems_count": len(st.session_state.problems),
-                    "winner": overall_winner,
-                    "winner_score": float(winner_score)
-                },
-                "leaderboard": leaderboard_df.to_dict(),
-                "consensus_scores": consensus_scores,
-                "summary_stats": summary_stats
-            }
+            with viz_tab1:
+                st.subheader("Peer Review Heatmap - Model Grades")
+                st.write("**How each model scored others** (Correctness & Accuracy)")
+                
+                try:
+                    matrix, models_list = build_heatmap_data(
+                        st.session_state.review_results,
+                        metric="Correctness & Accuracy"
+                    )
+                    
+                    fig = go.Figure(data=go.Heatmap(
+                        z=matrix,
+                        x=models_list,
+                        y=models_list,
+                        colorscale='Viridis',
+                        text=matrix,
+                        texttemplate='%{text:.2f}',
+                        textfont={"size": 10}
+                    ))
+                    fig.update_layout(
+                        height=600,
+                        xaxis_title="Model Being Reviewed",
+                        yaxis_title="Reviewing Model",
+                        hovermode='closest'
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                    st.caption("💡 **Interpretation**: Each row shows how one model rated others. Higher values = better reviews given.")
+                    
+                except Exception as e:
+                    st.error(f"Could not generate heatmap: {e}")
             
-            import json
-            json_str = json.dumps(export_data, indent=2)
+            with viz_tab2:
+                st.subheader("Performance Breakdown by Rubric Criteria")
+                st.write("**How each model scores across different dimensions**")
+                
+                # Create bar chart for each criterion
+                rubric_comparison = build_rubric_comparison(leaderboard_df.copy(), top_n=len(st.session_state.models))
+                
+                # Show all criteria in organized view
+                criteria_per_row = 2
+                rubric_list = list(RUBRIC)
+                
+                for i in range(0, len(rubric_list), criteria_per_row):
+                    cols = st.columns(criteria_per_row)
+                    
+                    for col_idx, rubric in enumerate(rubric_list[i:i+criteria_per_row]):
+                        with cols[col_idx]:
+                            scores = [rubric_comparison[model].get(rubric, 0) for model in rubric_comparison.keys()]
+                            
+                            fig = px.bar(
+                                x=list(rubric_comparison.keys()),
+                                y=scores,
+                                title=rubric,
+                                labels={"x": "", "y": "Score (1-5)"},
+                                color=scores,
+                                color_continuous_scale='Viridis',
+                                height=350
+                            )
+                            fig.update_layout(
+                                showlegend=False,
+                                hovermode='x unified',
+                                margin=dict(l=0, r=0, t=40, b=0)
+                            )
+                            st.plotly_chart(fig, use_container_width=True)
             
-            st.download_button(
-                "📥 Download Session Report (JSON)",
-                json_str,
-                f"codexmatrix_session_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-                "application/json"
-            )
+            with viz_tab3:
+                st.subheader("Top Models Side-by-Side Comparison")
+                st.write("**Performance comparison of leading models**")
+                
+                top_n = min(3, len(st.session_state.models))
+                rubric_comp = build_rubric_comparison(leaderboard_df.copy(), top_n=top_n)
+                
+                comparison_df = pd.DataFrame(rubric_comp).T
+                comparison_df = comparison_df[RUBRIC]
+                
+                fig = px.bar(
+                    comparison_df,
+                    barmode='group',
+                    title=f"Top {top_n} Models Performance",
+                    labels={"index": "Model", "value": "Score"},
+                    height=500,
+                    color_discrete_sequence=['#3b82f6', '#a855f7', '#ec4899']
+                )
+                fig.update_layout(
+                    hovermode='x unified',
+                    xaxis_title="Rubric Criteria",
+                    yaxis_title="Score (1-5)"
+                )
+                st.plotly_chart(fig, use_container_width=True)
+        
+        # ========== TAB 3: DATA & EXPORT ==========
+        with main_tab3:
+            data_tab1, data_tab2 = st.tabs([
+                "📋 Raw Data",
+                "📥 Download Report"
+            ])
             
-            st.divider()
-            st.write("**Raw Generation Results:**")
-            st.json(st.session_state.generation_results, expanded=False)
+            with data_tab1:
+                st.subheader("Detailed Raw Data")
+                
+                raw_col1, raw_col2 = st.columns(2)
+                
+                with raw_col1:
+                    st.write("**Generation Results**")
+                    with st.expander("View generated code details"):
+                        st.json(st.session_state.generation_results, expanded=False)
+                
+                with raw_col2:
+                    st.write("**Review Results**")
+                    with st.expander("View peer review matrix"):
+                        st.json(st.session_state.review_results, expanded=False)
             
-            st.write("**Raw Review Results:**")
-            st.json(st.session_state.review_results, expanded=False)
+            with data_tab2:
+                st.subheader("Export Session Report")
+                
+                # Prepare downloadable data
+                export_data = {
+                    "session_info": {
+                        "start_time": st.session_state.session_start.isoformat(),
+                        "models": st.session_state.models,
+                        "languages": st.session_state.languages,
+                        "problems_count": len(st.session_state.problems),
+                        "winner": overall_winner,
+                        "winner_score": float(winner_score)
+                    },
+                    "leaderboard": leaderboard_df.to_dict(),
+                    "consensus_scores": consensus_scores,
+                    "summary_stats": summary_stats
+                }
+                
+                json_str = json.dumps(export_data, indent=2)
+                
+                st.download_button(
+                    "📥 Download Session Report (JSON)",
+                    json_str,
+                    f"codexmatrix_session_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                    "application/json"
+                )
+                
+                st.write("---")
+                st.write("**📊 Export as CSV Tables**")
+                
+                col_csv1, col_csv2, col_csv3 = st.columns(3)
+                
+                with col_csv1:
+                    leaderboard_csv = leaderboard_display.to_csv()
+                    st.download_button(
+                        "📊 Download Leaderboard (CSV)",
+                        leaderboard_csv,
+                        f"leaderboard_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                        "text/csv"
+                    )
+                
+                with col_csv2:
+                    # Handle consensus scores CSV export
+                    if isinstance(consensus_scores, dict):
+                        consensus_df = pd.DataFrame(
+                            list(consensus_scores.items()),
+                            columns=['Category', 'Score']
+                        ).sort_values('Score', ascending=False)
+                        consensus_csv = consensus_df.to_csv(index=False)
+                    else:
+                        consensus_csv = str(consensus_scores)
+                    
+                    st.download_button(
+                        "📊 Download Consensus Scores (CSV)",
+                        consensus_csv,
+                        f"consensus_scores_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                        "text/csv"
+                    )
+                
+                with col_csv3:
+                    # Summary stats CSV
+                    summary_df = pd.DataFrame(
+                        list(summary_stats.items()),
+                        columns=['Metric', 'Value']
+                    )
+                    summary_csv = summary_df.to_csv(index=False)
+                    
+                    st.download_button(
+                        "📊 Download Summary Stats (CSV)",
+                        summary_csv,
+                        f"summary_stats_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                        "text/csv"
+                    )
         
         st.divider()
         
