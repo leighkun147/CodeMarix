@@ -98,20 +98,86 @@ def apply_creative_theme():
         /* Creative card styling */
         .creative-card {{
             background: linear-gradient(135deg, rgba(30, 58, 138, 0.3) 0%, rgba(107, 33, 168, 0.2) 100%);
-            border: 1px solid rgba({CREATIVE_PALETTE['blue_bright']}, 0.3);
-            border-radius: 12px;
-            padding: 1.5rem;
+            border: 1px solid {CREATIVE_PALETTE['blue_accent']};
+            border-radius: 14px;
+            padding: 1.25rem 1.5rem;
             margin: 1rem 0;
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(14px);
             transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 10px 22px rgba(0, 0, 0, 0.32);
+            position: relative;
+            overflow: hidden;
+        }}
+        
+        .creative-card::after {{
+            content: '';
+            position: absolute;
+            inset: -40%;
+            background: radial-gradient(circle at top left, rgba(99, 102, 241, 0.25), transparent 55%);
+            opacity: 0.4;
+            pointer-events: none;
         }}
         
         .creative-card:hover {{
-            border-color: rgba({CREATIVE_PALETTE['purple_bright']}, 0.6);
-            box-shadow: 0 12px 24px rgba({CREATIVE_PALETTE['purple_bright']}, 0.15),
-                        0 0 40px rgba({CREATIVE_PALETTE['cyan_accent']}, 0.1);
-            transform: translateY(-4px);
+            border-color: {CREATIVE_PALETTE['purple_bright']};
+            box-shadow: 0 14px 30px rgba(15, 23, 42, 0.9),
+                        0 0 40px rgba(56, 189, 248, 0.35);
+            transform: translateY(-3px) scale(1.01);
+        }}
+
+        /* Tactical nav card + pills */
+        .nav-toggle-card {{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1.5rem;
+        }}
+
+        .nav-toggle-left {{
+            display: flex;
+            flex-direction: column;
+            gap: 0.15rem;
+            position: relative;
+            z-index: 1;
+        }}
+
+        .nav-toggle-title {{
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: {CREATIVE_PALETTE['purple_accent']};
+        }}
+
+        .nav-toggle-subtitle {{
+            font-size: 0.8rem;
+            color: {CREATIVE_PALETTE['text_muted']};
+        }}
+
+        .nav-toggle-right {{
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            position: relative;
+            z-index: 1;
+        }}
+
+        .nav-mode-pill {{
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.5);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: {CREATIVE_PALETTE['text_secondary']};
+            background: rgba(15, 23, 42, 0.65);
+        }}
+
+        .nav-mode-pill.active {{
+            border-color: {CREATIVE_PALETTE['cyan_accent']};
+            color: {CREATIVE_PALETTE['white']};
+            background: radial-gradient(circle at top left, {CREATIVE_PALETTE['blue_bright']} 0%, {CREATIVE_PALETTE['purple_bright']} 70%);
+            box-shadow: 0 0 14px rgba(56, 189, 248, 0.55);
         }}
         
         /* Winner banner */
@@ -186,14 +252,22 @@ def apply_creative_theme():
             background: linear-gradient(135deg, {CREATIVE_PALETTE['blue_bright']} 0%, {CREATIVE_PALETTE['purple_bright']} 100%);
             color: white;
             border: none;
-            border-radius: 8px;
-            padding: 0.75rem 1.5rem;
+            border-radius: 999px;
+            padding: 0.55rem 1.2rem;
             font-weight: 600;
-            font-size: 0.95rem;
+            font-size: 0.85rem;
             transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-            box-shadow: 0 4px 15px rgba({CREATIVE_PALETTE['purple_bright']}, 0.3);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
+            box-shadow: 0 4px 15px rgba({CREATIVE_PALETTE['purple_bright']}, 0.35);
+            letter-spacing: 0.02em;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.35rem;
+            width: 100%;
+            max-width: 100%;
+            white-space: normal;
+            word-break: break-word;
+            text-align: center;
         }}
         
         .stButton > button:hover {{

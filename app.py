@@ -15,6 +15,7 @@ import plotly.express as px
 from datetime import datetime
 import os
 import json
+import re
 
 from src.requester import generate_code_parallel
 from src.judge_matrix import peer_review_matrix, RUBRIC
@@ -25,6 +26,12 @@ from src.core.stats_engine import (
     build_rubric_comparison,
     compute_consus_scores,
     generate_summary_stats
+)
+from src.utils.firebase_client import (
+    save_session_result,
+    fetch_recent_sessions,
+    update_model_aggregates,
+    fetch_model_stats,
 )
 from src.utils.data_sanitizer import sanitize_session_data
 from src.new_ui_theme import (
@@ -92,6 +99,7 @@ if "session_initialized" not in st.session_state:
     st.session_state.stats_complete = False
     st.session_state.benchmark_running = False
     st.session_state.error_messages = []
+    st.session_state.current_view = "benchmark"
 
 # ============================================================================
 # UI STYLING & CONSTANTS - Using Military Command Center Theme
@@ -141,6 +149,20 @@ st.markdown("""
 - 💾 **Form Memory**: Your problems, models, languages, and API keys are saved locally and restored on your next visit
 
 """)
+
+current_view = st.session_state.get("current_view", "benchmark")
+
+nav_col_left, nav_col_center, nav_col_right = st.columns([3, 4, 3])
+with nav_col_center:
+    btn_cols = st.columns(2)
+    with btn_cols[0]:
+        if st.button("📡 Open Global Dashboard"):
+            st.session_state.current_view = "global"
+            st.rerun()
+    with btn_cols[1]:
+        if st.button("🎯 Back to Benchmark"):
+            st.session_state.current_view = "benchmark"
+            st.rerun()
 
 # ============================================================================
 # SIDEBAR: INPUT COLLECTION
@@ -290,8 +312,177 @@ def validate_session_inputs() -> tuple[bool, list]:
 
 
 # ============================================================================
+# GLOBAL DASHBOARD RENDERER (FIRESTORE)
+# ============================================================================
+def render_global_dashboard() -> None:
+    """Render the read-only global dashboard backed by Firestore."""
+    st.subheader("📡 Global Dashboard")
+    if os.getenv("ENABLE_FIREBASE", "false").lower() != "true":
+        st.info(
+            "Firebase persistence is disabled. Set ENABLE_FIREBASE=true and "
+            "configure credentials to view the global dashboard."
+        )
+        return
+
+    try:
+        col_matrix = st.columns([2.0])
+
+        # st.columns returns a list; use the single column element
+        with col_matrix[0]:
+            st.markdown("### 🧭 Model × Language Performance Matrix")
+            stats_docs = fetch_model_stats()
+            if not stats_docs:
+                st.caption("No aggregated model statistics available yet.")
+            else:
+                rows_stats = []
+                for d in stats_docs:
+                    total = d.get("total_tests_conducted") or 0
+
+                    # Firestore may return either a nested map "running_sum" or
+                    # flattened keys like "running_sum.correctness_accuracy".
+                    running = d.get("running_sum") or {}
+                    if not running:
+                        flat_running = {
+                            k.split(".", 1)[1]: v
+                            for k, v in d.items()
+                            if isinstance(k, str) and k.startswith("running_sum.")
+                        }
+                        if flat_running:
+                            running = flat_running
+
+                    if not total or not running:
+                        continue
+                    rubric_count = len(running)
+                    if not rubric_count:
+                        continue
+                    overall_avg = (
+                        sum(float(v) for v in running.values())
+                            / (float(total) * float(rubric_count))
+                    )
+                    rows_stats.append(
+                        {
+                            "Model": d.get("model"),
+                            "Language": d.get("language"),
+                            "Avg Score": overall_avg,
+                            "Tests": total,
+                        }
+                    )
+                if rows_stats:
+                    stats_df = pd.DataFrame(rows_stats)
+                    pivot = stats_df.pivot_table(
+                        index="Model",
+                        columns="Language",
+                        values="Avg Score",
+                    )
+                    fig_hm = px.imshow(
+                        pivot,
+                        color_continuous_scale="RdYlGn",
+                        zmin=0,
+                        zmax=5,
+                        labels={"color": "Avg Score (0-5)"},
+                        aspect="auto",
+                    )
+                    fig_hm.update_layout(
+                        height=500,
+                        margin=dict(l=0, r=0, t=40, b=0),
+                    )
+                    st.plotly_chart(fig_hm, use_container_width=True)
+                    with st.expander("View aggregated table"):
+                        st.dataframe(
+                            stats_df.sort_values(
+                                ["Avg Score", "Tests"],
+                                ascending=[False, False],
+                            ),
+                            use_container_width=True,
+                        )
+
+                    # Detailed rubric breakdown for a selected language
+                    languages_available = sorted(
+                        stats_df["Language"].dropna().unique().tolist()
+                    )
+                    if languages_available:
+                        focus_lang = st.selectbox(
+                            "Focus language for rubric breakdown",
+                            languages_available,
+                        )
+
+                        # Build per-rubric averages per model for the selected language
+                        rubric_rows = []
+                        for d in stats_docs:
+                            if d.get("language") != focus_lang:
+                                continue
+                            total = d.get("total_tests_conducted") or 0
+
+                            running = d.get("running_sum") or {}
+                            if not running:
+                                flat_running = {
+                                    k.split(".", 1)[1]: v
+                                    for k, v in d.items()
+                                    if isinstance(k, str)
+                                    and k.startswith("running_sum.")
+                                }
+                                if flat_running:
+                                    running = flat_running
+                            rubric_keys = d.get("rubric_keys") or []
+                            if not total or not running or not rubric_keys:
+                                continue
+
+                            def _slugify_local(value: str) -> str:
+                                v = value.lower()
+                                v = re.sub(r"[^a-z0-9]+", "_", v)
+                                v = v.strip("_")
+                                return v or "unknown"
+
+                            for rubric_label in rubric_keys:
+                                field_key = _slugify_local(rubric_label)
+                                if field_key not in running:
+                                    continue
+                                try:
+                                    avg_score = float(running[field_key]) / float(total)
+                                except (TypeError, ValueError, ZeroDivisionError):
+                                    continue
+                                rubric_rows.append(
+                                    {
+                                        "Model": d.get("model"),
+                                        "Rubric": rubric_label,
+                                        "Avg Score": avg_score,
+                                    }
+                                )
+
+                        if rubric_rows:
+                            rubric_df = pd.DataFrame(rubric_rows)
+                            fig_rubric = px.bar(
+                                rubric_df,
+                                x="Rubric",
+                                y="Avg Score",
+                                color="Model",
+                                barmode="group",
+                                title=f"Rubric Breakdown by Model ({focus_lang})",
+                                labels={"Avg Score": "Average Score (0-5)"},
+                            )
+                            fig_rubric.update_layout(
+                                xaxis_tickangle=-35,
+                                height=420,
+                                margin=dict(l=0, r=0, t=40, b=80),
+                            )
+                            st.plotly_chart(fig_rubric, use_container_width=True)
+                else:
+                    st.caption(
+                        "Aggregated stats exist but could not be rendered into a matrix."
+                    )
+    except Exception as dash_err:
+        st.error(f"Error loading global dashboard: {dash_err}")
+
+
+# ============================================================================
 # MAIN WORKFLOW: GENERATION → REVIEW → ANALYSIS → DISPLAY
 # ============================================================================
+
+# If the user selected the read-only dashboard view, render it and exit early.
+if st.session_state.get("current_view", "benchmark") == "global":
+    render_global_dashboard()
+    st.stop()
+
 
 if launch_benchmark:
     # Validate inputs
@@ -455,6 +646,64 @@ if launch_benchmark:
             )
             
             st.session_state.stats_complete = True
+
+            # Optionally persist this session to Firebase/Firestore
+            if os.getenv("ENABLE_FIREBASE", "false").lower() == "true":
+                try:
+                    session_start_iso = (
+                        st.session_state.session_start.isoformat()
+                        if hasattr(st.session_state, "session_start")
+                        else datetime.utcnow().isoformat()
+                    )
+
+                    session_record = {
+                        "problems": st.session_state.problems,
+                        "models": st.session_state.models,
+                        "languages": st.session_state.languages,
+                        "session_start": session_start_iso,
+                        "winner": overall_winner,
+                        "winner_score": float(winner_score) if winner_score is not None else None,
+                        "leaderboard": leaderboard_df.reset_index().to_dict(orient="records"),
+                        "consensus_scores": consensus_scores,
+                        "summary_stats": summary_stats,
+                    }
+
+                    # Update raw session log
+                    doc_id = save_session_result(session_record)
+
+                    # Update global + daily aggregates for each model/language pair
+                    # using the standardized RUBRIC map.
+                    model_scores = {}
+                    for model in st.session_state.models:
+                        if model in leaderboard_df.index:
+                            per_rubric = {}
+                            for rubric in RUBRIC:
+                                if rubric in leaderboard_df.columns:
+                                    try:
+                                        per_rubric[rubric] = float(
+                                            leaderboard_df.loc[model, rubric]
+                                        )
+                                    except Exception:
+                                        per_rubric[rubric] = 0.0
+                                else:
+                                    per_rubric[rubric] = 0.0
+                            model_scores[model] = per_rubric
+
+                    if model_scores:
+                        update_model_aggregates(
+                            model_scores=model_scores,
+                            languages=st.session_state.languages,
+                            rubric_keys=RUBRIC,
+                            session_start_iso=session_start_iso,
+                        )
+
+                    st.caption(f"📡 Session stored in Firebase (ID: {doc_id[:8]}…)")
+                except Exception as fb_err:
+                    # Do not break the app if Firebase is misconfigured; show soft notice
+                    st.caption(
+                        "⚠️ Firebase persistence disabled or misconfigured: "
+                        f"{str(fb_err)}"
+                    )
             
         except Exception as e:
             st.error(f"❌ Error during analysis: {str(e)}")
@@ -462,12 +711,13 @@ if launch_benchmark:
         
         # ====== STEP D: DISPLAY RESULTS (TABBED ORGANIZATION) ======
         st.header("🏆 Session Results & Analysis")
-        
+		
         # Main result tabs organized by category
-        main_tab1, main_tab2, main_tab3 = st.tabs([
+        main_tab1, main_tab2, main_tab3, main_tab4 = st.tabs([
             "📊 OVERVIEW & RANKINGS",
             "📈 VISUALIZATIONS & INSIGHTS",
-            "💾 DATA & EXPORT"
+            "💾 DATA & EXPORT",
+            "📡 GLOBAL DASHBOARD",
         ])
         
         # ========== TAB 1: OVERVIEW & RANKINGS ==========
@@ -781,6 +1031,10 @@ if launch_benchmark:
                         f"summary_stats_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
                         "text/csv"
                     )
+
+            # ========== TAB 4: GLOBAL DASHBOARD (FIRESTORE) ==========
+            with main_tab4:
+                render_global_dashboard()
         
         st.divider()
         

@@ -12,3 +12,6 @@ build/
 *.db
 .idea/
 .vscode/.codexmatrix_prefs.json
+
+# Firebase service account (do not commit secrets)
+codex-ai-benchmarking-64e18abae23d.json
