@@ -3,7 +3,6 @@
 **Author:** Leykun Hailemichael Hagos  
 **Major:** Software Engineering, Samsun University  
 **Academic Year:** 2025-2026 (First Year Research)  
-**Hardware:** ASUS ExpertBook P5405CSA
 
 ---
 

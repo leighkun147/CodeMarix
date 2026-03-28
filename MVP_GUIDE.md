@@ -101,7 +101,17 @@ The app executes 4 steps automatically:
 ### Step B: Peer Review Matrix
 - Each model grades every other model's code
 - Uses the model itself as the judge (LLM-based grading)
-- 5 rubric criteria: Syntactic Correctness, Algorithmic Efficiency, etc.
+- 10 comprehensive rubric criteria:
+  1. Correctness & Accuracy
+  2. Efficiency (Time)
+  3. Efficiency (Space)
+  4. Readability & Clear Code
+  5. Documentation & Comments
+  6. Edge-Case Handling
+  7. Error Handling & Robustness
+  8. Security & Safe Practices
+  9. Code Simplicity
+  10. Best Practices & Standards
 - Scores: 1-5 (1=Poor, 5=Excellent)
 
 ### Step C: Real-Time Analysis
@@ -202,11 +212,16 @@ streamlit run app.py
 ### Leaderboard Table
 Shows average scores for each model across all rubrics:
 - **Model** - Model name
-- **Syntactic Correctness** - Does code run?
-- **Algorithmic Efficiency** - Is algorithm optimal?
-- **Readability & Documentation** - Is code well-written?
+- **Correctness & Accuracy** - Does solution produce correct output?
+- **Efficiency (Time)** - Optimal time complexity?
+- **Efficiency (Space)** - Minimal memory usage?
+- **Readability & Clear Code** - Easy to understand?
+- **Documentation & Comments** - Well-documented?
 - **Edge-Case Handling** - Handles boundaries?
-- **Security Vulnerabilities** - Any security issues?
+- **Error Handling & Robustness** - Graceful error management?
+- **Security & Safe Practices** - Any security issues?
+- **Code Simplicity** - Elegant without unnecessary complexity?
+- **Best Practices & Standards** - Follows language conventions?
 
 ### Heatmap
 Matrix showing how each model scored others:

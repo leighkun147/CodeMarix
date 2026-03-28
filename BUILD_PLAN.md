@@ -78,13 +78,19 @@ Browser Close → All cleanup (Zero persistence)
 
 #### `src/judge_matrix.py` (Enhanced)
 - Actual LLM-based code grading via API
-- Parameterizable rubric:
-  1. Syntactic Correctness
-  2. Algorithmic Efficiency
-  3. Readability & Documentation
-  4. Edge-Case Handling
-  5. Security Vulnerabilities
-- JSON response parsing from grader LLM
+- Comprehensive rubric with 10 quantitative parameters:
+  1. Correctness & Accuracy
+  2. Efficiency (Time)
+  3. Efficiency (Space)
+  4. Readability & Clear Code
+  5. Documentation & Comments
+  6. Edge-Case Handling
+  7. Error Handling & Robustness
+  8. Security & Safe Practices
+  9. Code Simplicity
+  10. Best Practices & Standards
+- Numeric key JSON format (1-10) for reliable LLM parsing
+- Robust JSON extraction with key normalization
 - Parallel review execution (5 concurrent reviews)
 - Error handling with neutral default scores
 
@@ -133,11 +139,16 @@ Features:
 
 ```python
 RUBRIC = [
-    "Syntactic Correctness",      # Does code run?
-    "Algorithmic Efficiency",      # Time/Space complexity?
-    "Readability & Documentation", # Code quality?
-    "Edge-Case Handling",         # Boundary conditions?
-    "Security Vulnerabilities"     # Safe code?
+    "Correctness & Accuracy",       # Correct output?
+    "Efficiency (Time)",             # Time complexity optimal?
+    "Efficiency (Space)",            # Memory usage minimal?
+    "Readability & Clear Code",      # Easy to understand?
+    "Documentation & Comments",      # Well-documented?
+    "Edge-Case Handling",            # Boundary conditions?
+    "Error Handling & Robustness",   # Error management?
+    "Security & Safe Practices",     # Safe code?
+    "Code Simplicity",               # Elegant without complexity?
+    "Best Practices & Standards"     # Language conventions?
 ]
 ```
 
