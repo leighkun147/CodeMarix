@@ -100,10 +100,25 @@ if "session_initialized" not in st.session_state:
 # Theme colors defined in src/ui_components.py
 
 AVAILABLE_MODELS = [
+    # OpenAI
+    "GPT-4o",
+    "GPT-4o Mini",
+
+    # Anthropic
+    "Claude 3.5 Sonnet",
+    "Claude 3.5 Haiku",
+
+    # Google Gemini
     "Gemini 2.0 Flash",
+    "Gemini 1.5 Flash",
+
+    # Groq hosted models
     "Groq - Llama 3.1 70B",
-    "Groq - Mixtral 8x7B",
     "Groq - LLaMA 3 8B",
+    "Groq - Mixtral 8x7B",
+
+    # DeepSeek
+    "DeepSeek Coder V2",
 ]
 
 AVAILABLE_LANGUAGES = [
