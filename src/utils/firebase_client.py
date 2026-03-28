@@ -16,13 +16,28 @@ try:
 except ImportError:  # pragma: no cover - handled at runtime
     firestore = None  # type: ignore
 
+try:  # Optional import; only needed when running under Streamlit
+    import streamlit as st  # type: ignore
+except Exception:  # pragma: no cover - safe fallback when not in Streamlit
+    st = None  # type: ignore
+
+try:
+    from google.oauth2 import service_account  # type: ignore
+except ImportError:  # pragma: no cover - provided by google-cloud-firestore deps
+    service_account = None  # type: ignore
+
 
 def _require_firestore_client() -> "firestore.Client":  # type: ignore[name-defined]
     """Return an initialized Firestore client or raise a clear RuntimeError.
 
-    Uses FIREBASE_PROJECT_ID from environment to select the project. The
-    underlying Google credentials are expected to be provided via
-    GOOGLE_APPLICATION_CREDENTIALS or the environment used by Streamlit Cloud.
+     Uses FIREBASE_PROJECT_ID from environment to select the project.
+
+     Credential resolution order:
+     1. If running under Streamlit and a ``[firebase_service_account]`` block
+         exists in ``st.secrets``, use it to build explicit service account
+         credentials (recommended for Streamlit Cloud).
+     2. Otherwise, fall back to default Google credentials, which can be
+         provided via ``GOOGLE_APPLICATION_CREDENTIALS`` or the runtime env.
     """
     if firestore is None:
         raise RuntimeError(
@@ -37,6 +52,22 @@ def _require_firestore_client() -> "firestore.Client":  # type: ignore[name-defi
             "or Streamlit Cloud secrets to enable persistence."
         )
 
+    # Preferred path for Streamlit Cloud: use a service account from secrets
+    # so we don't rely on GOOGLE_APPLICATION_CREDENTIALS pointing to a file.
+    if st is not None and service_account is not None:
+        try:
+            if "firebase_service_account" in st.secrets:
+                sa_info = dict(st.secrets["firebase_service_account"])
+                creds = service_account.Credentials.from_service_account_info(
+                    sa_info
+                )
+                return firestore.Client(project=project_id, credentials=creds)
+        except Exception:
+            # Fall back to default credentials if secrets are missing/invalid
+            pass
+
+    # Fallback: rely on default Google credentials (e.g. local dev with
+    # GOOGLE_APPLICATION_CREDENTIALS or gcloud auth).
     return firestore.Client(project=project_id)
 
 
