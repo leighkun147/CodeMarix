@@ -2,14 +2,14 @@
 
 ## Overview
 
-**CodexMatrix** is a session-only AI code benchmarking engine. It evaluates code-generating AI models using a peer-review matrix ($M^2$) system.
+**CodexMatrix** is an AI code benchmarking engine that combines rich per-session analysis with a Firebase-backed global leaderboard. It evaluates code-generating AI models using a peer-review matrix ($M^2$) system.
 
 ### Key Features
-- 🎯 **No Database** - Session-only, everything in RAM
-- 🔐 **Privacy First** - API keys never saved to disk
+- 🎯 **Session + Global** - In-depth per-session runs plus persistent aggregate stats in Firestore
+- 🔐 **Privacy First** - API keys never saved to disk or Firestore
 - ⚡ **Real-Time** - Live progress tracking & visualization
 - 📊 **Peer Review** - Each model reviews every other model's code
-- 📈 **Beautiful Dashboards** - Interactive heatmaps, rankings, comparisons
+- 📈 **Global Dashboards** - Interactive heatmaps, rankings, and comparisons across sessions
 
 ---
 

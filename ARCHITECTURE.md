@@ -2,10 +2,10 @@
 
 ## System Overview
 
-CodexMatrix is a **session-only AI benchmarking engine** that uses a peer-review matrix ($M^2$) to evaluate code-generating AI models. 
+CodexMatrix is an AI benchmarking engine that uses a peer-review matrix ($M^2$) to evaluate code-generating AI models. It runs rich, stateful sessions in RAM while also writing aggregate (and optionally detailed) results to Firebase/Firestore for a global leaderboard.
 
 ### Core Principle
-> **"Temporary Vault" Pattern**: All data lives only in Streamlit Session State (RAM). When the browser closes, everything is securely wiped.
+> **"Temporary Vault for Secrets" Pattern**: API keys and other sensitive secrets live only in Streamlit Session State (RAM) and are cleared when the browser closes, while benchmark outcomes are persisted in Firestore for global analytics.
 
 ---
 

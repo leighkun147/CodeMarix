@@ -139,14 +139,15 @@ AVAILABLE_LANGUAGES = [
 # MAIN UI: HEADER & INSTRUCTIONS
 # ============================================================================
 
-st.title("⚔️ CodexMatrix: The Session-Only AI Code Benchmarking Engine")
+st.title("⚔️ CodexMatrix: AI Code Benchmarking Arena")
 st.markdown("""
 **CodexMatrix** evaluates code-generating AI models using a peer-review matrix ($M^2$).
-- 🚀 **Single-Session Workflow**: No database, no persistence
-- 🔐 **Privacy First**: API keys stay in RAM, cleared when browser closes
-- ⚡ **Real-Time Analysis**: Live heatmaps and winner determination
+- 🚀 **Session + Global Workflow**: Run rich per-session experiments and contribute to a Firebase-backed global leaderboard
+- 🔐 **Privacy First**: API keys stay in RAM only and are never stored in Firestore or on disk
+- ⚡ **Real-Time Analysis**: Live heatmaps and winner determination for each session
 - 📊 **Peer Review**: Each model reviews every other model's code
-- 💾 **Form Memory**: Your problems, models, languages, and API keys are saved locally and restored on your next visit
+- 🌍 **Global Leaderboard**: Explore cross-user performance trends on the Global Dashboard
+- 💾 **Form Memory**: Your problems, models, languages, and API keys are saved locally in the browser and restored on your next visit
 
 """)
 
